@@ -15,3 +15,7 @@ software:
   - @BorshevikUpdateIndicatorExtension
 guidelines:
   - "Keep the last known state while rpm-ostreed is not running. The daemon exits when idle, and its proxy then has no name owner and no cached properties; treating that as \"nothing staged\" would hide the icon a minute after every update. A staged deployment only goes away through a reboot or an rpm-ostree call, and that call runs the daemon and emits the change."
+startup:
+  - load
+workflow:
+  type: @BorshevikExtensionWorkflow

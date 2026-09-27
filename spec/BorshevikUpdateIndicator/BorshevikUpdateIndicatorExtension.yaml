@@ -7,48 +7,32 @@ fields:
   - id: BUS_NAME
     type: string
     default: "'org.projectatomic.rpmostree1'"
-    description: Well-known name of rpm-ostreed on the system bus. D-Bus activatable, and an unprivileged client may start it, which is what lets the proxy work right after login before anything else has touched rpm-ostree.
-  - id: SYSROOT_PATH
-    type: string
-    default: "'/org/projectatomic/rpmostree1/Sysroot'"
-    description: Object path of the Sysroot object.
+    description: rpm-ostreed's name on the system bus. It is D-Bus activatable and an unprivileged client may start it, which is what lets the proxy work right after login before anything else has touched rpm-ostree.
   - id: SYSROOT_IFACE
     type: string
     default: "'org.projectatomic.rpmostree1.Sysroot'"
-    description: Interface carrying the Deployments property (aa{sv}, emits-change). Each deployment dict carries at least the booleans 'booted' and 'staged'; the array is in boot order, so its first entry is what boots next.
-  - id: ICON_NAME
-    type: string
-    default: "'software-update-available-symbolic'"
-    description: Symbolic icon shown while a reboot would apply a new image.
-  - id: this._indicator
-    type: "UpdateIndicator | null"
-    default: "null"
-    description: The system indicator added to the Quick Settings indicator strip; created in enable(), destroyed in disable().
+    description: rpm-ostree's Sysroot interface. Its Deployments property emits changes and lists the deployments in boot order, so the first one is what boots next.
   - id: this._proxy
     type: "Gio.DBusProxy | null"
     default: "null"
-    description: Proxy for SYSROOT_IFACE; set when the async construction started in enable() finishes, nulled in disable().
-  - id: this._proxySignalIds
-    type: "number[]"
-    default: "[]"
-    description: Handler ids of the proxy's g-properties-changed and notify::g-name-owner connections, disconnected in disable().
+    description: The proxy _sync reads; null until its construction finishes, and after disable().
   - id: this._cancellable
     type: "Gio.Cancellable | null"
     default: "null"
     description: Cancels the proxy construction if disable() runs before it finishes, so the callback never touches a torn-down extension.
 functions:
   - id: needsReboot
-    description: "Module-level pure function. Argument: deployments, the unpacked Deployments array. Returns true when any deployment has staged === true, or when the array is non-empty and its first entry — the one that boots next — does not have booted === true (a pending deployment, e.g. after a non-staged rebase or a rollback). Returns false for an empty or missing array. The same condition as @ImageManagerApp#rpm-ostree#needsReboot (staged || pending)."
+    description: True when a deployment is staged, or when the deployment that boots next is not the running one (a pending deployment, e.g. after a non-staged rebase or a rollback); false when there are no deployments. The same condition as @ImageManagerApp#rpm-ostree#needsReboot (staged || pending), so the icon and the Image Manager's reboot row never disagree.
   - id: enable
-    description: "Creates this._indicator and hands it to Main.panel.statusArea.quickSettings.addExternalIndicator. Creates this._cancellable and starts Gio.DBusProxy.new_for_bus(SYSTEM, flags NONE — so rpm-ostreed is auto-started if it is not running and its properties are loaded, null interface info, BUS_NAME, SYSROOT_PATH, SYSROOT_IFACE, this._cancellable, callback). The callback finishes construction with Gio.DBusProxy.new_for_bus_finish inside try/catch: a cancelled construction returns silently; any other error is logged with console.error and leaves the icon hidden. On success it stores the proxy, connects g-properties-changed and notify::g-name-owner to _sync (ids into this._proxySignalIds), and calls _sync once."
+    description: Adds the indicator to the Quick Settings strip and builds the proxy asynchronously, without DO_NOT_AUTO_START, so rpm-ostreed is started if needed and the state is known right after login. If the proxy cannot be built the error is logged and the icon stays hidden. From then on every change of the proxy's properties or of its name owner runs _sync.
   - id: _sync
-    description: "Returns without changing anything when the proxy is null or has no g_name_owner — the daemon has exited while idle and its absence says nothing about the system. Otherwise reads get_cached_property('Deployments'); returns if it is null. Unpacks it with recursiveUnpack() and sets the indicator's icon visible to needsReboot(deployments)."
+    description: Shows the icon exactly when needsReboot says so — except while rpm-ostreed is not running or has not yet reported its deployments, when it changes nothing (see this project's guideline).
   - id: disable
-    description: "Cancels and nulls this._cancellable; disconnects every id in this._proxySignalIds from the proxy and clears the list; nulls this._proxy. Destroys each of this._indicator.quickSettingsItems (none are added, but it is the documented teardown) and then this._indicator itself, and nulls it."
+    description: Cancels a proxy construction still in flight, disconnects from the proxy, and destroys the indicator.
 components:
   - id: update-indicator
     type: @View
-    description: "UpdateIndicator — a GObject-registered subclass of QuickSettings.SystemIndicator. Its constructor calls this._addIndicator() once and keeps the returned St.Icon; the indicator strip shows or hides the whole SystemIndicator from its icons' visibility, so hiding the icon is all it takes."
+    description: A Quick Settings system indicator holding one icon. The indicator strip hides the whole indicator while none of its icons is visible, so hiding the icon is all it takes.
     components:
       - id: update-icon
         type: @Image
@@ -66,7 +50,7 @@ components:
     type: @ConfigFile
     format: JSON
     src: borshevik-update-indicator@komorebinator/metadata.json
-    description: "Extension manifest: uuid 'borshevik-update-indicator@komorebinator', name 'Borshevik Update Indicator', a one-sentence description, shell-version ['50'], url pointing at the repository, version 1. No settings-schema — the extension has no preferences."
+    description: Extension manifest: GNOME Shell 50 only, and no preferences.
 tests:
   - id: tried-by-the-author
     description: Manual. Whether the icon appears in the right place, looks right and follows the staged state can only be seen in a running shell, against the real rpm-ostreed.
