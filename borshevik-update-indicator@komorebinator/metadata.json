@@ -1,0 +1,8 @@
+{
+  "uuid": "borshevik-update-indicator@komorebinator",
+  "name": "Borshevik Update Indicator",
+  "description": "Shows an icon among the system status icons when a new Borshevik image has been downloaded and a reboot will apply it.",
+  "shell-version": ["50"],
+  "url": "https://github.com/komorebinator/borshevik-update-indicator",
+  "version": 1
+}
