@@ -1,6 +1,6 @@
 description: "GNOME Shell extension entry point. An ES module exporting a default class extending the Shell Extension base class, plus one GObject-registered class for the indicator itself (see update-indicator). On enable() it adds a Quick Settings system indicator holding one hidden icon, and opens a Gio.DBusProxy to rpm-ostree's Sysroot on the system bus; whenever the Deployments property changes it recomputes whether a reboot would apply a new image and shows or hides the icon. The icon has no menu, tooltip or click action of its own — it sits in the Quick Settings indicator strip, so clicking it opens the Quick Settings menu like the icons around it."
-extends: @Extension
-target: @GnomeShell
+extends: "@Extension"
+target: "@GnomeShell"
 platform: GJS (GNOME Shell 50+) — Gio, GObject, Main, QuickSettings
 src: borshevik-update-indicator@komorebinator/extension.js
 fields:
@@ -31,11 +31,11 @@ functions:
     description: Cancels a proxy construction still in flight, disconnects from the proxy, and destroys the indicator.
 components:
   - id: update-indicator
-    type: @View
+    type: "@View"
     description: A Quick Settings system indicator holding one icon. The indicator strip hides the whole indicator while none of its icons is visible, so hiding the icon is all it takes.
     components:
       - id: update-icon
-        type: @Image
+        type: "@Image"
         graphic: ICON_NAME
         description: The only icon; its visibility is set by _sync.
         visible: false
@@ -47,10 +47,10 @@ components:
         fields:
           - id: this._icon
   - id: metadata
-    type: @ConfigFile
+    type: "@ConfigFile"
     format: JSON
     src: borshevik-update-indicator@komorebinator/metadata.json
-    description: Extension manifest: GNOME Shell 50 only, and no preferences.
+    description: "Extension manifest: GNOME Shell 50 only, and no preferences."
 tests:
   - id: tried-by-the-author
     description: Manual. Whether the icon appears in the right place, looks right and follows the staged state can only be seen in a running shell, against the real rpm-ostreed.

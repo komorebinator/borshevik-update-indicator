@@ -1,6 +1,6 @@
 name: Borshevik Update Indicator
 description: GNOME Shell extension for Borshevik Linux — shows an icon among the system status icons (battery, sound, network) when a new OS image has been downloaded and a reboot will apply it, and nothing at all otherwise. Watches rpm-ostree's deployments over D-Bus, so it reacts to an update staged by the Image Manager and by automatic updates alike.
-extends: @DuckspecProject
+extends: "@DuckspecProject"
 terms_folder: BorshevikUpdateIndicator/
 repository: https://github.com/komorebinator/borshevik-update-indicator
 goals:
@@ -12,10 +12,10 @@ uses:
 settings:
   readme: ../README.md
 software:
-  - @BorshevikUpdateIndicatorExtension
+  - "@BorshevikUpdateIndicatorExtension"
 guidelines:
   - "Keep the last known state while rpm-ostreed is not running. The daemon exits when idle, and its proxy then has no name owner and no cached properties; treating that as \"nothing staged\" would hide the icon a minute after every update. A staged deployment only goes away through a reboot or an rpm-ostree call, and that call runs the daemon and emits the change."
 startup:
   - load
 workflow:
-  type: @BorshevikExtensionWorkflow
+  type: "@BorshevikExtensionWorkflow"
