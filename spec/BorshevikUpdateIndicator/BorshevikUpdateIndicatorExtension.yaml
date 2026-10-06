@@ -1,7 +1,7 @@
-description: "GNOME Shell extension entry point. An ES module exporting a default class extending the Shell Extension base class, plus one GObject-registered class for the indicator itself (see update-indicator). On enable() it adds a Quick Settings system indicator holding one hidden icon, and opens a Gio.DBusProxy to rpm-ostree's Sysroot on the system bus; whenever the Deployments property changes it recomputes whether a reboot would apply a new image and shows or hides the icon. The icon has no menu, tooltip or click action of its own — it sits in the Quick Settings indicator strip, so clicking it opens the Quick Settings menu like the icons around it."
+description: "GNOME Shell extension entry point. An ES module exporting a default class extending the Shell Extension base class, plus one GObject-registered class for the indicator itself (see update-indicator). On enable() it adds a Quick Settings system indicator holding one hidden icon, and opens a Gio.DBusProxy to rpm-ostree's Sysroot on the system bus; whenever the Deployments property changes it recomputes whether a reboot would apply a new image and shows or hides the icon. The icon has no menu, tooltip or click action of its own — it sits in the Quick Settings indicator strip, so clicking it opens the Quick Settings menu like the icons around it. While a reboot would apply a new image it also gives GNOME's power button in Quick Settings the same update icon (power-button) and relabels and highlights the Restart item of its menu (restart-item)."
 extends: "@Extension"
 target: "@GnomeShell"
-platform: GJS (GNOME Shell 50+) — Gio, GObject, Main, QuickSettings
+platform: GJS (GNOME Shell 50+) — Gio, GObject, Gettext, Main, QuickSettings
 src: borshevik-update-indicator@komorebinator/extension.js
 fields:
   - id: BUS_NAME
@@ -16,6 +16,26 @@ fields:
     type: "Gio.DBusProxy | null"
     default: "null"
     description: The proxy _sync reads; null until its construction finishes, and after disable().
+  - id: RESTART_STYLE
+    type: string
+    default: "'borshevik-update-restart'"
+    description: The style class the restart item carries while a reboot would apply a new image (stylesheet).
+  - id: POWER_ICON_NAME
+    type: string
+    default: "'system-shutdown-symbolic'"
+    description: The icon GNOME gives its power button, which the button gets back when no update waits.
+  - id: this._rebootPending
+    type: boolean
+    default: "false"
+    description: What _sync last found needsReboot to say, for the power button and restart item when Quick Settings opens.
+  - id: this._restartItem
+    type: "PopupMenuItem | null"
+    default: "null"
+    description: GNOME's restart item once found (_findPowerMenu). Kept rather than looked up each time, since while an update waits its label no longer reads GNOME's "Restart…".
+  - id: this._powerButton
+    type: "QuickSettingsItem | null"
+    default: "null"
+    description: GNOME's power button in Quick Settings — the system item's child whose menu is the power menu — found with the restart item and kept.
   - id: this._cancellable
     type: "Gio.Cancellable | null"
     default: "null"
@@ -23,12 +43,21 @@ fields:
 functions:
   - id: needsReboot
     description: True when a deployment is staged, or when the deployment that boots next is not the running one (a pending deployment, e.g. after a non-staged rebase or a rollback); false when there are no deployments. The same condition as @ImageManagerApp#rpm-ostree#needsReboot (staged || pending), so the icon and the Image Manager's reboot row never disagree.
+  - id: restartLabel
+    description: "GNOME's own label of the restart item, `Restart…` as GNOME Shell's translation (gettext domain gnome-shell) gives it in the user's locale — what the item is found by, and what it is set back to."
+  - id: restartToUpdateLabel
+    description: "The label of the restart item while an update waits: GNOME Software's `_Restart & Update…` (gettext domain gnome-software, which the image ships), so the extension carries no translations of its own and the phrase reads as GNOME's in every language GNOME Software is translated to — Russian, Ukrainian, Belarusian and Georgian among Borshevik's, though not Armenian, for which GNOME Shell has no translation either and the menu is English anyway. Its mnemonic markers are dropped, the item having no mnemonics: `_` in most translations, `(_R)` in some, and a stray `&` in Georgian's. Should GNOME Software leave the image, the phrase falls back to English. Chosen over GNOME Shell's `Restart & Install Updates`, a dialog title, for being a command that ends in an ellipsis, as the item opens a dialog."
   - id: enable
-    description: Adds the indicator to the Quick Settings strip and builds the proxy asynchronously, without DO_NOT_AUTO_START, so rpm-ostreed is started if needed and the state is known right after login. If the proxy cannot be built the error is logged and the icon stays hidden. From then on every change of the proxy's properties or of its name owner runs _sync.
+    description: Adds the indicator to the Quick Settings strip and builds the proxy asynchronously, without DO_NOT_AUTO_START, so rpm-ostreed is started if needed and the state is known right after login. If the proxy cannot be built the error is logged and the icon stays hidden. From then on every change of the proxy's properties or of its name owner runs _sync. Also brings the power button and restart item up to date each time Quick Settings opens, because GNOME builds its power menu asynchronously and it may not exist yet when the extension is enabled.
   - id: _sync
-    description: Shows the icon exactly when needsReboot says so — except while rpm-ostreed is not running or has not yet reported its deployments, when it changes nothing (see this project's guideline).
+    description: Shows the icon and marks the power button and restart item exactly when needsReboot says so — except while rpm-ostreed is not running or has not yet reported its deployments, when it changes nothing (see this project's guideline).
+  - id: _findPowerMenu
+    description: "GNOME's power button and its restart item: the system item of Quick Settings (quickSettings._system._systemItem, private to GNOME Shell) holds the button, whose menu is the power menu, and in it the item labelled restartLabel(). Found once and kept; false while GNOME has not built them."
+  - id: _syncRestartItem
+    description: "While a reboot would apply a new image, gives the power button ICON_NAME and the restart item restartToUpdateLabel() and RESTART_STYLE; otherwise GNOME's POWER_ICON_NAME, restartLabel() and no extra style. Only icon, label and style change: the item still opens GNOME's own restart dialog, and a reboot applies the staged image by itself. Does nothing while the item cannot be found."
+
   - id: disable
-    description: Cancels a proxy construction still in flight, disconnects from the proxy, and destroys the indicator.
+    description: Cancels a proxy construction still in flight, stops following Quick Settings, gives the power button and restart item back GNOME's icon, label and style, disconnects from the proxy, and destroys the indicator.
 components:
   - id: update-indicator
     type: "@View"
@@ -46,6 +75,28 @@ components:
               visible: true
         fields:
           - id: this._icon
+  - id: power-button
+    type: "@View"
+    description: GNOME's power button in Quick Settings, not the extension's own; while an update waits it shows the update icon, so the update can be seen in Quick Settings before its menu is opened (_syncRestartItem).
+    states:
+      - id: reboot-pending
+        when: needsReboot(Deployments) is true
+        property_changes:
+          icon_name: ICON_NAME
+  - id: restart-item
+    type: "@View"
+    description: GNOME's Restart item in the power menu of Quick Settings, not the extension's own; the extension only changes its label and style while an update waits (_syncRestartItem).
+    states:
+      - id: reboot-pending
+        when: needsReboot(Deployments) is true
+        property_changes:
+          label: restartToUpdateLabel()
+          style: RESTART_STYLE, the accent colour and bold
+  - id: stylesheet
+    type: "@ConfigFile"
+    format: CSS (GNOME Shell St theming)
+    src: borshevik-update-indicator@komorebinator/stylesheet.css
+    description: "RESTART_STYLE: the restart item in the user's accent colour (-st-accent-color) and bold. An outline with an accent-tinted background, with white text and then with accent text, was tried on 2026-10-07 and judged worse. GNOME Shell loads it with the extension."
   - id: metadata
     type: "@ConfigFile"
     format: JSON
@@ -55,7 +106,7 @@ tests:
   - id: tried-by-the-author
     description: Manual. Whether the icon appears in the right place, looks right and follows the staged state can only be seen in a running shell, against the real rpm-ostreed.
     command: "@BorshevikUpdateIndicatorExtension#recipes#run"
-    expect: "the extension is ACTIVE in `gnome-extensions info`; no errors from it in `journalctl --user -b _COMM=gnome-shell`; with no update staged no icon is shown; once an update is staged (by the Image Manager or `rpm-ostree upgrade`) the icon appears among the status icons without a relogin"
+    expect: "the extension is ACTIVE in `gnome-extensions info`; no errors from it in `journalctl --user -b _COMM=gnome-shell`; with no update staged no icon is shown and the power menu's Restart item is GNOME's own; once an update is staged (by the Image Manager or `rpm-ostree upgrade`) the icon appears among the status icons without a relogin, the power button in Quick Settings shows the update icon, and the Restart item reads Restart & Update… in the accent colour and still opens GNOME's restart dialog; with the extension disabled the power button and menu are GNOME's own"
 recipes:
   - id: run
     description: Runs the extension from the working tree in the current session. On Wayland GNOME Shell cannot be restarted in place and no nested shell is available here (gnome-shell --devkit needs mutter-devkit), so a relogin is part of it.

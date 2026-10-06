@@ -1,0 +1,5 @@
+/* GNOME's restart item while a reboot would apply a new image. */
+.borshevik-update-restart {
+  color: -st-accent-color;
+  font-weight: bold;
+}

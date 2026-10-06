@@ -1,11 +1,12 @@
 name: Borshevik Update Indicator
-description: GNOME Shell extension for Borshevik Linux — shows an icon among the system status icons (battery, sound, network) when a new OS image has been downloaded and a reboot will apply it, and nothing at all otherwise. Watches rpm-ostree's deployments over D-Bus, so it reacts to an update staged by the Image Manager and by automatic updates alike.
+description: GNOME Shell extension for Borshevik Linux — shows an icon among the system status icons (battery, sound, network) when a new OS image has been downloaded and a reboot will apply it, gives GNOME's power button in Quick Settings the same icon and turns the Restart item of its menu into a highlighted "Restart & Update…"; nothing at all otherwise. Watches rpm-ostree's deployments over D-Bus, so it reacts to an update staged by the Image Manager and by automatic updates alike.
 extends: "@DuckspecProject"
 terms_folder: BorshevikUpdateIndicator/
 repository: https://github.com/komorebinator/borshevik-update-indicator
 goals:
   - Show that a new image has been downloaded and will apply on reboot, without the user opening any application — including when automatic updates downloaded it
-  - Stay out of the way otherwise — no icon, no menu, no notifications, and no polling
+  - "Say so where the user reboots: GNOME's power button, which shows the update icon, and its menu, whose Restart item reads \"Restart & Update…\" in the user's language while a reboot would apply a new image"
+  - Stay out of the way otherwise — no icon, GNOME's power menu as GNOME made it, no notifications, and no polling
 uses:
   - https://github.com/komorebinator/duckspec
   - https://github.com/komorebinator/borshevik
