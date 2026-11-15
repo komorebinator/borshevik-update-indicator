@@ -42,7 +42,7 @@ fields:
     description: Cancels the proxy construction if disable() runs before it finishes, so the callback never touches a torn-down extension.
 functions:
   - id: needsReboot
-    description: True when a deployment is staged, or when the deployment that boots next is not the running one (a pending deployment, e.g. after a non-staged rebase or a rollback); false when there are no deployments. The same condition as @ImageManagerApp#rpm-ostree#needsReboot (staged || pending), so the icon and the Image Manager's reboot row never disagree.
+    description: True when a deployment is staged, or when the deployment that boots next is not the running one (a pending deployment, e.g. after a non-staged rebase or a rollback); false when there are no deployments. The same condition as @ImageManagerApp#components#rpm-ostree#functions#needsReboot (staged || pending), so the icon and the Image Manager's reboot row never disagree.
   - id: restartLabel
     description: "GNOME's own label of the restart item, `Restart…` as GNOME Shell's translation (gettext domain gnome-shell) gives it in the user's locale — what the item is found by, and what it is set back to."
   - id: restartToUpdateLabel
@@ -96,7 +96,14 @@ components:
     type: "@ConfigFile"
     format: CSS (GNOME Shell St theming)
     src: borshevik-update-indicator@komorebinator/stylesheet.css
-    description: "RESTART_STYLE: the restart item in the user's accent colour (-st-accent-color) and bold. An outline with an accent-tinted background, with white text and then with accent text, was tried on 2026-10-07 and judged worse. GNOME Shell loads it with the extension."
+    description: "RESTART_STYLE: the restart item in the user's accent colour (-st-accent-color) and bold. Why no more than that: decisions#accent-and-bold. GNOME Shell loads it with the extension."
+    decisions:
+      - id: accent-and-bold
+        description: The restart item stands out by the accent colour and bold text alone.
+        rejected:
+          - an outline with an accent-tinted background and white text — judged worse
+          - the same outline and background with accent text — judged worse
+        date: 2026-10-07
   - id: metadata
     type: "@ConfigFile"
     format: JSON
